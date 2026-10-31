@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Benchmarking Exploration Hacking Propensity in Frontier LLMs</title>
+  <meta name="description" content="EHP-Bench: a black-box benchmark for measuring whether frontier LLMs strategically alter their behavior to influence anticipated RL training.">
+
+  <!-- Social previews (update og:url once the page is deployed) -->
+  <meta property="og:title" content="Benchmarking Exploration Hacking Propensity in Frontier LLMs">
+  <meta property="og:description" content="EHP-Bench: do frontier models change what they do now because they expect it to affect how they are trained later?">
+  <meta property="og:image" content="static/images/teaser.png">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-soft: #f6f7f9;
+      --text: #1b1f24;
+      --muted: #5b6570;
+      --border: #e3e6ea;
+      --accent: #2d5bd7;
+      --accent-soft: #eaf0ff;
+      --btn-bg: #1b1f24;
+      --btn-text: #ffffff;
+      --fig-bg: #ffffff;
+      --hero-bg: #f0f6fb;
+      --hero-accent: #1f5fa8;
+      --coral: #f27a68;
+      --coral-soft: #fdeeeb;
+      --coral-border: #f6ab9f;
+      --coral-text: #c4483a;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0f1216;
+        --bg-soft: #171b21;
+        --text: #e7eaee;
+        --muted: #9aa4af;
+        --border: #2a3038;
+        --accent: #8aa8ff;
+        --accent-soft: #1c2640;
+        --btn-bg: #e7eaee;
+        --btn-text: #0f1216;
+        --fig-bg: #ffffff;
+        --hero-bg: #152030;
+        --hero-accent: #8fb8ea;
+        --coral-soft: #2a1a18;
+        --coral-border: #7a3c33;
+        --coral-text: #f6ab9f;
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Aptos, "Albert Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-size: 17px;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .container { max-width: 960px; margin: 0 auto; padding: 0 16px; }
+    .narrow { max-width: 760px; margin: 0 auto; }
+
+    /* ---------- Hero ---------- */
+    header.hero { padding: 64px 0 48px; text-align: center; background: var(--hero-bg); border-bottom: 1px solid var(--border); }
+    .teaser { margin-top: 40px; text-align: left; }
+    .teaser-panels { display: flex; gap: 20px; align-items: stretch; }
+    .teaser-panels img {
+      min-width: 0; height: auto; padding: 0; border: 0; background: transparent;
+      border-radius: 3.2%/2.2%;
+      box-shadow: 0 0 0 1px rgba(20,50,90,.06), 0 2px 6px rgba(20,50,90,.08), 0 12px 32px rgba(20,50,90,.12);
+    }
+    .teaser-panels img:nth-child(1) { flex: 1185 1 0; }
+    .teaser-panels img:nth-child(2) { flex: 1163 1 0; }
+    .teaser-panels img:nth-child(3) { flex: 1194 1 0; }
+    .teaser figcaption { margin-top: 20px; }
+    .venue {
+      display: inline-block;
+      font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+      color: var(--hero-accent); background: var(--bg);
+      padding: 6px 12px; border-radius: 999px; margin-bottom: 20px;
+    }
+    h1.title {
+      font-family: Aptos, "Albert Sans", system-ui, sans-serif;
+      font-weight: 700; letter-spacing: -0.015em;
+      font-size: clamp(30px, 5vw, 46px);
+      line-height: 1.15;
+      margin: 0 auto 28px;
+      max-width: 820px;
+      text-wrap: balance;
+    }
+    .authors { font-size: 18px; margin: 0 0 8px; }
+    .authors .author { display: inline-block; margin: 0 10px 4px; white-space: nowrap; }
+    .authors .author a { color: var(--text); border-bottom: 1px solid var(--border); }
+    .authors .author a:hover { color: var(--accent); border-color: var(--accent); text-decoration: none; }
+    .authors .author a.x-link { border: 0; color: var(--muted); margin-left: 4px; display: inline-flex; vertical-align: -1px; }
+    .authors .author a.x-link:hover { color: var(--accent); }
+    .authors .author a.x-link svg { width: 13px; height: 13px; fill: currentColor; }
+    .authors sup { color: var(--muted); font-size: 12px; margin-left: 1px; }
+    .affiliations { color: var(--muted); font-size: 15px; margin: 6px 0 2px; }
+    .affiliations span { margin: 0 10px; display: inline-block; }
+    .facilitated { color: var(--muted); font-size: 14.5px; margin-top: 10px; }
+    .facilitated a { color: var(--hero-accent); font-weight: 600; }
+    .equal { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+    .buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 28px 0 0; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--btn-bg); color: var(--btn-text);
+      padding: 10px 18px; border-radius: 999px;
+      font-size: 15px; font-weight: 500;
+      transition: transform .12s ease, opacity .12s ease;
+    }
+    .btn:hover { text-decoration: none; transform: translateY(-1px); opacity: .9; }
+    .btn svg { width: 18px; height: 18px; fill: currentColor; }
+    .btn .soon {
+      font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+      background: rgba(127,127,127,.28); padding: 2px 7px; border-radius: 999px;
+    }
+
+    /* ---------- Sections ---------- */
+    section { padding: 40px 0; }
+    section.alt { background: var(--bg-soft); }
+    h2 {
+      font-family: Aptos, "Albert Sans", system-ui, sans-serif;
+      font-weight: 700; font-size: 30px; line-height: 1.2; letter-spacing: -0.01em;
+      text-align: center; margin: 0 0 24px;
+    }
+    h3 { font-size: 19px; font-weight: 600; margin: 0 0 8px; }
+    p { margin: 0 0 16px; }
+    .abstract p { text-align: justify; hyphens: auto; }
+
+    .tldr {
+      font-size: 18px; line-height: 1.65;
+      background: var(--coral-soft); border: 1px solid var(--coral-border); border-radius: 12px;
+      padding: 26px 32px;
+    }
+    .tldr .tldr-label {
+      display: block; margin-bottom: 8px;
+      font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--coral-text);
+    }
+    .tldr .q { display: block; font-size: 22px; font-weight: 700; line-height: 1.3; letter-spacing: -0.01em; margin-bottom: 12px; }
+    .tldr b { font-weight: 600; }
+
+    figure { margin: 0; }
+    figure img {
+      display: block; width: 100%; height: auto;
+      background: var(--fig-bg); border-radius: 10px;
+      border: 1px solid var(--border); padding: 10px;
+    }
+    figcaption { color: var(--muted); font-size: 15px; margin-top: 12px; line-height: 1.55; }
+    figcaption b { color: var(--text); }
+
+
+
+    .finding { margin: 0 0 56px; }
+    .finding:last-child { margin-bottom: 0; }
+    .finding .num-label { font-size: 13px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+    .finding-body { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: center; }
+
+    pre.bibtex {
+      position: relative;
+      background: var(--bg-soft); border: 1px solid var(--border); border-radius: 10px;
+      padding: 18px 20px; overflow-x: auto;
+      font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 13.5px; line-height: 1.55;
+      margin: 0;
+    }
+    .copy-btn {
+      position: absolute; top: 10px; right: 10px;
+      font: 500 12px Aptos, "Albert Sans", sans-serif;
+      background: var(--bg); color: var(--muted); border: 1px solid var(--border);
+      padding: 4px 10px; border-radius: 6px; cursor: pointer;
+    }
+    .copy-btn:hover { color: var(--text); }
+
+    footer { padding: 32px 0 48px; color: var(--muted); font-size: 14px; text-align: center; border-top: 1px solid var(--border); }
+
+    @media (max-width: 720px) {
+      body { font-size: 16px; }
+      header.hero { padding-top: 48px; }
+      .finding-body { grid-template-columns: 1fr; }
+      h2 { font-size: 26px; }
+      .abstract p { text-align: left; }
+      .teaser-panels { flex-direction: column; gap: 16px; }
+      .teaser-panels img { flex: none !important; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="container">
+    <div class="venue">NeurIPS 2026 Workshops</div>
+
+    <h1 class="title">Benchmarking Exploration Hacking Propensity in Frontier LLMs</h1>
+
+    <!-- AUTHORS: name links to LinkedIn; the small X icon links to their X/Twitter profile. -->
+    <div class="authors">
+      <span class="author">
+        <a href="https://www.linkedin.com/in/eduard-h%C3%BCbner-9b3400154/" target="_blank" rel="noopener">Eduard Hübner</a>
+        <a class="x-link" href="https://x.com/eduardhbner1" target="_blank" rel="noopener" aria-label="Eduard Hübner on X"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.9 2H22l-6.8 7.8L23.2 22h-6.3l-4.9-6.4L6.4 22H3.3l7.3-8.3L2.8 2h6.4l4.4 5.9L18.9 2Zm-1.1 18.1h1.7L7.3 3.8H5.5l12.3 16.3Z"/></svg></a>
+      </span>
+      <span class="author">
+        <a href="https://www.linkedin.com/in/nina-zukowska/" target="_blank" rel="noopener">Nina Zukowska</a>
+      </span>
+      <span class="author">
+        <a href="https://www.linkedin.com/in/kotekjedi/" target="_blank" rel="noopener">Alexander Panfilov</a>
+        <a class="x-link" href="https://x.com/kotekjedi_ml" target="_blank" rel="noopener" aria-label="Alexander Panfilov on X"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.9 2H22l-6.8 7.8L23.2 22h-6.3l-4.9-6.4L6.4 22H3.3l7.3-8.3L2.8 2h6.4l4.4 5.9L18.9 2Zm-1.1 18.1h1.7L7.3 3.8H5.5l12.3 16.3Z"/></svg></a>
+      </span>
+      <span class="author">
+        <a href="https://www.linkedin.com/in/joschka-braun/" target="_blank" rel="noopener">Joschka Braun</a>
+        <a class="x-link" href="https://x.com/braunjoschka" target="_blank" rel="noopener" aria-label="Joschka Braun on X"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.9 2H22l-6.8 7.8L23.2 22h-6.3l-4.9-6.4L6.4 22H3.3l7.3-8.3L2.8 2h6.4l4.4 5.9L18.9 2Zm-1.1 18.1h1.7L7.3 3.8H5.5l12.3 16.3Z"/></svg></a>
+      </span>
+    </div>
+    <div class="facilitated">
+      Facilitated by <a href="https://safeaigermany.org/" target="_blank" rel="noopener">Safe AI Germany (SAIGE)</a>
+    </div>
+    <!-- AFFILIATIONS: uncomment and add <sup>1</sup> etc. after each author name above.
+    <div class="affiliations">
+      <span><sup>1</sup>Institution One</span>
+      <span><sup>2</sup>Institution Two</span>
+    </div>
+    -->
+
+    <div class="buttons">
+      <!-- PAPER (OpenReview PDF) -->
+      <a class="btn" href="https://openreview.net/pdf?id=zAejOPjT6L" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15a0 0 0 0 1 0 0H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm8 1.5V8h4.5L14 3.5ZM8 12h8v1.5H8V12Zm0 3.5h8V17H8v-1.5Zm0-7h4V10H8V8.5Z"/></svg>
+        Paper
+      </a>
+      <!-- ARXIV: swap href for https://arxiv.org/abs/XXXX.XXXXX -->
+      <a class="btn" href="static/images/coming-soon.png" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4.5C5.6 3.7 8.6 3.9 11 5.3v14.2c-2.4-1.3-5.4-1.5-8-.7V4.5Zm18 0v14.3c-2.6-.8-5.6-.6-8 .7V5.3c2.4-1.4 5.4-1.6 8-.8Z"/></svg>
+        arXiv <span class="soon">Soon</span>
+      </a>
+      <!-- CODE: swap href for the GitHub repo -->
+      <a class="btn" href="static/images/coming-soon.png" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+        Code <span class="soon">Soon</span>
+      </a>
+      <a class="btn" href="#bibtex">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm2 4v2h10V7H7Zm0 4v2h10v-2H7Zm0 4v2h6v-2H7Z"/></svg>
+        BibTeX
+      </a>
+    </div>
+    <figure class="teaser">
+      <div class="teaser-panels">
+        <img src="static/images/teaser_panel1.png" alt="Panel A, Scaffolding: six levels from baseline to explicit instruction, plus two control conditions.">
+        <img src="static/images/teaser_panel2.png" alt="Panel B, Evaluation settings: capability elicitation on Cyber, Bio and Chem; preference preservation for truthfulness and power restraint.">
+        <img src="static/images/teaser_panel3.png" alt="Panel C, Example result: Gemini 3.1 Pro on WMDP-Cyber answers more often wrong at higher levels; L4 reasoning excerpt.">
+      </div>
+      <figcaption>
+        <b>Overview of EHP-Bench. Left:</b> Six scaffold conditions progressively add information relevant to exploration hacking, from an unframed baseline to an explicit instruction to underperform; two controls remove the model update or apply it to another model. <b>Middle:</b> We evaluate capability-directed exploration hacking on WMDP and CTF tasks, and preference preservation for truthfulness and power restraint. <b>Right:</b> Gemini 3.1 Pro on WMDP-Cyber: performance drops as the scaffold makes the training consequence and opportunity to underperform explicit; at L4, the model states that it will answer incorrectly to avoid reinforcing the capability.
+      </figcaption>
+    </figure>
+  </div>
+</header>
+
+
+<!-- ---------- TL;DR ---------- -->
+<section>
+  <div class="container">
+    <div class="tldr">
+      <span class="tldr-label">TL;DR</span>
+      <span class="q">Will AI models deliberately underperform to steer how they get trained?</span>
+      We built <b>EHP-Bench</b> to test whether frontier models try to shape their own training.
+      When told that correct answers would train them toward deception or power seeking,
+      <b>4 of 7 models deliberately answer wrong to steer training away from it</b>.
+      <b>Gemini 3.1 Pro also underperforms on dangerous-capability tasks</b> to keep training from strengthening them.
+    </div>
+  </div>
+</section>
+
+<!-- ---------- Abstract ---------- -->
+<section class="alt abstract">
+  <div class="container narrow">
+    <h2>Abstract</h2>
+    <p>
+      Reinforcement learning (RL) is central to frontier-model post-training, both for eliciting capabilities in safety evaluations and for shaping model dispositions through alignment training, but recent work shows that models can strategically alter their exploration to influence training outcomes. This behavior, <b>exploration hacking (EH)</b>, can undermine both when a model changes its behavior to shape a future policy or deployment. We introduce <b>Exploration Hacking Propensity Bench (EHP-Bench)</b>, a black-box benchmark for measuring attempted exploration hacking in frontier models. A six-level scaffold progressively supplies the information needed to infer a training or deployment consequence, and matched controls state that no model is updated, or that the update applies to a different model. Behavioral outcomes are scored without a language-model judge while verbalized reasoning is analyzed separately, where traces are available. We evaluate seven frontier models on capability-directed exploration hacking, using WMDP and interactive capture-the-flag (CTF) challenges, and on preference preservation for truthfulness and power restraint. In preference preservation, four of seven models abandon correct answers that are described as training them toward deception or power seeking, often stating explicitly that they do so to preserve their existing preference. On WMDP-Cyber, Bio, and Chem, Gemini 3.1 Pro loses 40–45% of its previously correct answers when it must discover the training context itself, but not when the context is stated in the prompt. On CTF, the same model again reduces its solve rate and withholds flags that already appeared in its own tool output, while the other six models show little change. Matched controls point to different drivers: preference preservation is much stronger when correct answers would change the responding model's own future policy, whereas capability-directed underperformance is at least as strong when a different model would be updated. Nulls are mostly conflicts that never form or are explicitly dismissed. A positive result therefore identifies a model whose capability evaluations should be read as lower bounds, while a null mainly indicates that the described situation did not convince that model.
+    </p>
+  </div>
+</section>
+
+<!-- ---------- Findings ---------- -->
+<section>
+  <div class="container">
+    <h2>Key Findings</h2>
+
+    <div class="finding">
+      <div class="num-label">Finding 1</div>
+      <h3>Preference preservation is common</h3>
+      <p>Under matched scaffolding, four of seven models abandon correct answers to protect a standing preference, on both truthfulness and power restraint, and often say explicitly that they do so to preserve that preference. The effect is much stronger when the responding model's <em>own</em> future policy is described as changing.</p>
+      <figure>
+        <img src="static/images/preference.png" alt="Preference-preservation accuracy across scaffold levels for power restraint and truthfulness.">
+        <figcaption><b>Preference-preservation results for power restraint and truthfulness.</b> Accuracy is the fraction of responses consistent with the model's standing preference across the baseline, no-update condition, and scaffold conditions L2–L6. Diamonds show the different-model control, where correct responses are described as training a separate model rather than the responding model. Lower accuracy means that the model more often answers against its standing preference.</figcaption>
+      </figure>
+    </div>
+
+    <div class="finding">
+      <div class="num-label">Finding 2</div>
+      <h3>Gemini 3.1 Pro shows the strongest capability-directed EH propensity</h3>
+      <div class="finding-body">
+        <div>
+          <p>Gemini 3.1 Pro loses 40–45% of its previously correct WMDP-Cyber, Bio and Chem answers when it must <em>discover</em> the training context in an agentic environment, but not when the context is stated in a single-turn prompt without a nudge.</p>
+          <p>Unlike preference preservation, this underperformance persists when a <em>different</em> model is the stated training target: capability protection appears impersonal, while preference protection is self-directed.</p>
+        </div>
+        <figure>
+          <img src="static/images/wmdp_crossdomain.png" alt="Gemini 3.1 Pro accuracy across WMDP domains by scaffold level.">
+          <figcaption><b>Gemini 3.1 Pro underperformance across WMDP domains.</b> Capability strengthening produces an earlier and stronger effect than deployment suspension.</figcaption>
+        </figure>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="num-label">Finding 3</div>
+      <h3>Reasoning leaves a visible trail of EH</h3>
+      <p>Underperformance requires registering the consequence, representing a conflict with it, and acting on that conflict. A represented conflict appears in 99% of attempts, while training awareness without one never produces an attempt. Nulls arise when the conflict never forms, when it forms and is explicitly set aside, or when it forms and the model declines anyway. Only the last is evidence about the model rather than about the described situation.</p>
+      <figure>
+        <img src="static/images/reasoning.png" alt="Fraction of episodes engaging with training setup and attempted underperformance by reasoning category.">
+        <figcaption><b>Verbalized reasoning on WMDP.</b> <b>A:</b> Fraction of episodes whose reasoning engages with the training setup at all, by level, pooled over models. <b>B:</b> Attempted underperformance and wrong answers in agentic episodes at L3 and L4, grouped by what the reasoning represents: neither, training awareness only, a goal conflict only, or both. The four groups contain, from left to right, 5,266, 171, 319 and 613 episodes. Training awareness without a goal conflict precedes no attempts. GPT-5.6 Sol has no agentic reasoning labels and is not shown.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ---------- BibTeX ---------- -->
+<section class="alt" id="bibtex">
+  <div class="container narrow">
+    <h2>BibTeX</h2>
+<pre class="bibtex"><button class="copy-btn" type="button" onclick="copyBib(this)">Copy</button><code id="bib">@misc{huebner2026benchmarking,
+  title  = {Benchmarking Exploration Hacking Propensity in Frontier {LLMs}},
+  author = {H{\"u}bner, Eduard and Zukowska, Nina and Panfilov, Alexander and Braun, Joschka},
+  year   = {2026},
+  url    = {https://openreview.net/forum?id=zAejOPjT6L}
+}</code></pre>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    This project was facilitated by <a href="https://safeaigermany.org/" target="_blank" rel="noopener">Safe AI Germany (SAIGE)</a>.
+  </div>
+</footer>
+
+<script>
+  function copyBib(btn) {
+    var text = document.getElementById('bib').innerText;
+    var done = function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1500); };
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(done, function () {});
+    }
+  }
+</script>
+</body>
+</html>
